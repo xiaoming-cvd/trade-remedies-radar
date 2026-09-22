@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>贸易救济数据雷达</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 0; background: #f5f7fa; color: #1f2937; }
+  header { background: #1e3a8a; color: #fff; padding: 24px 32px; }
+  header h1 { margin: 0 0 6px; font-size: 22px; }
+  header p { margin: 0; opacity: .8; font-size: 13px; }
+  main { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+  .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 150px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card .num { font-size: 24px; font-weight: 700; color: #1e40af; }
+  .card .label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+  .panel { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .panel h2 { margin: 0 0 12px; font-size: 16px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eef2f7; vertical-align: top; }
+  th { background: #f8fafc; color: #475569; }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: #eff6ff; color: #1d4ed8; white-space: nowrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>贸易救济数据雷达</h1>
+  <p>美国反倾销 / 反补贴公告自动追踪 · 数据源：Federal Register 官方 API · 生成时间：{{ generated_at }}</p>
+</header>
+<main>
+  <div class="cards">
+    <div class="card"><div class="num">{{ total }}</div><div class="label">公告总数</div></div>
+    <div class="card"><div class="num">{{ date_min }}</div><div class="label">最早日期</div></div>
+    <div class="card"><div class="num">{{ date_max }}</div><div class="label">最新日期</div></div>
+    <div class="card"><div class="num">{{ top_country }}</div><div class="label">涉案最多国家/地区</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>月度趋势</h2>
+    <canvas id="trendChart" height="90"></canvas>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>国别分布（Top 10）</h2>
+      <canvas id="countryChart" height="180"></canvas>
+    </div>
+    <div class="panel">
+      <h2>行业分布（Top 10）</h2>
+      <canvas id="industryChart" height="180"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>最新公告（前 100 条，点击标题查看原文）</h2>
+    <table>
+      <thead>
+        <tr><th>日期</th><th>类型</th><th>国家/地区</th><th>产品</th><th>标题</th><th>FR 文档号</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          {# 修复点：必须用 r["title"] 下标写法；写成 r.title 会被 Jinja2 解析成 dict 的内置方法，导致整列空白 #}
+          <td>{{ r["publication_date"] }}</td>
+          <td><span class="tag">{{ r["notice_type"] }}</span></td>
+          <td>{{ r["country"] }}</td>
+          <td>{{ r["product"] }}</td>
+          <td><a href="{{ r["html_url"] }}" target="_blank" rel="noopener">{{ r["title"] }}</a></td>
+          <td>{{ r["document_number"] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+<script>
+var BLUE = '#2563eb';
+new Chart(document.getElementById('trendChart'), {
+  type: 'line',
+  data: { labels: {{ months | tojson }}, datasets: [{ label: '公告数量', data: {{ monthly_counts | tojson }}, borderColor: BLUE, backgroundColor: 'rgba(37,99,235,.12)', fill: true, tension: .3 }] },
+  options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+});
+new Chart(document.getElementById('countryChart'), {
+  type: 'bar',
+  data: { labels: {{ countries | tojson }}, datasets: [{ label: '公告数量', data: {{ country_counts | tojson }}, backgroundColor: BLUE }] },
+  options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+});
+new Chart(document.getElementById('industryChart'), {
+  type: 'bar',
+  data: { labels: {{ industries | tojson }}, datasets: [{ label: '公告数量', data: {{ industry_counts | tojson }}, backgroundColor: '#0891b2' }] },
+  options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+});
+</script>
+</body>
+</html>
